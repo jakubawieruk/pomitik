@@ -143,12 +143,16 @@ impl Renderer {
         )?;
 
         // Hint bar — dark grey, centered
+        let is_last_round = params.round_info.is_some_and(|(cur, total)| cur >= total);
         let hints = match params.context {
             crate::timer::TimerContext::Standalone => {
-                "[space] pause  [s] skip  [x] stop"
+                "[space] pause  [s] skip  [x] stop".to_string()
             }
-            crate::timer::TimerContext::Work | crate::timer::TimerContext::Break => {
-                "[space] pause  [s] skip  [a] +round  [x] stop"
+            _ if is_last_round => {
+                "[space] pause  [a/d] +/-round  [x] stop".to_string()
+            }
+            _ => {
+                "[space] pause  [s] skip  [a/d] +/-round  [x] stop".to_string()
             }
         };
         let hints_col = cols.saturating_sub(hints.len() as u16) / 2;

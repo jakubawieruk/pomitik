@@ -15,6 +15,7 @@ use std::sync::Arc;
 pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool, title: Option<&str>) {
     let total_rounds = Arc::new(AtomicU32::new(session.rounds));
     let mut round: u32 = 1;
+    let mut in_alt_screen = false;
 
     loop {
         let current_total = total_rounds.load(Ordering::Relaxed);
@@ -34,7 +35,12 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool,
             }
         };
 
-        show_round_header(round, current_total, &session.work, &work_dur.format_hms(), title);
+        // Show header: if previous phase was skipped, we're already in alternate screen
+        if in_alt_screen {
+            draw_round_header_content(round, current_total, &session.work, &work_dur.format_hms(), title);
+        } else {
+            show_round_header(round, current_total, &session.work, &work_dur.format_hms(), title);
+        }
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         let outcome = timer::run(
@@ -45,19 +51,24 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool,
             Some((round, Arc::clone(&total_rounds))),
         ).await;
 
+        in_alt_screen = outcome == timer::TimerOutcome::Skipped;
+
         match outcome {
             timer::TimerOutcome::Quit => {
                 println!("Session cancelled.");
                 return;
             }
             timer::TimerOutcome::StoppedEarly => {
+                cleanup_alt_screen();
                 println!("Session stopped early after {} round{}.", round.saturating_sub(1), if round.saturating_sub(1) == 1 { "" } else { "s" });
                 return;
             }
             _ => {} // Completed or Skipped — continue to break
         }
 
-        crate::notify::send_completion(&session.work, &work_dur.format_hms(), silent);
+        if !in_alt_screen {
+            crate::notify::send_completion(&session.work, &work_dur.format_hms(), silent);
+        }
         log_entry(&session.work, work_dur.total_secs);
 
         // --- Break phase ---
@@ -82,7 +93,11 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool,
             }
         };
 
-        show_round_header(round, current_total, break_name, &break_dur.format_hms(), title);
+        if in_alt_screen {
+            draw_round_header_content(round, current_total, break_name, &break_dur.format_hms(), title);
+        } else {
+            show_round_header(round, current_total, break_name, &break_dur.format_hms(), title);
+        }
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         let outcome = timer::run(
@@ -93,32 +108,56 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool,
             Some((round, Arc::clone(&total_rounds))),
         ).await;
 
+        in_alt_screen = outcome == timer::TimerOutcome::Skipped;
+
         match outcome {
             timer::TimerOutcome::Quit => {
                 println!("Session cancelled.");
                 return;
             }
             timer::TimerOutcome::StoppedEarly => {
+                cleanup_alt_screen();
                 println!("Session stopped early after {} round{}.", round, if round == 1 { "" } else { "s" });
                 return;
             }
             _ => {} // Completed or Skipped — continue
         }
 
-        crate::notify::send_completion(break_name, &break_dur.format_hms(), silent);
+        if !in_alt_screen {
+            crate::notify::send_completion(break_name, &break_dur.format_hms(), silent);
+        }
         log_entry(break_name, break_dur.total_secs);
 
         round += 1;
     }
 
+    if in_alt_screen {
+        cleanup_alt_screen();
+    }
     let final_total = total_rounds.load(Ordering::Relaxed);
     println!("Session complete! {} rounds finished.", final_total);
+}
+
+fn cleanup_alt_screen() {
+    let _ = execute!(io::stdout(), cursor::Show, terminal::LeaveAlternateScreen);
+    let _ = terminal::disable_raw_mode();
 }
 
 fn show_round_header(round: u32, total: u32, name: &str, duration: &str, title: Option<&str>) {
     let _ = terminal::enable_raw_mode();
     let _ = execute!(io::stdout(), terminal::EnterAlternateScreen, cursor::Hide);
 
+    draw_round_header_content(round, total, name, duration, title);
+
+    let _ = io::stdout().flush();
+    let _ = execute!(io::stdout(), cursor::Show, terminal::LeaveAlternateScreen);
+    let _ = terminal::disable_raw_mode();
+}
+
+/// Draw round header content without managing alternate screen.
+/// Used both by show_round_header (first phase entry) and for smooth
+/// transitions when skipping (alternate screen already active).
+fn draw_round_header_content(round: u32, total: u32, name: &str, duration: &str, title: Option<&str>) {
     let (cols, rows) = terminal::size().unwrap_or((80, 24));
     let mid_row = rows / 2;
 
@@ -160,8 +199,6 @@ fn show_round_header(round: u32, total: u32, name: &str, duration: &str, title: 
         ResetColor,
     );
     let _ = io::stdout().flush();
-    let _ = execute!(io::stdout(), cursor::Show, terminal::LeaveAlternateScreen);
-    let _ = terminal::disable_raw_mode();
 }
 
 fn log_entry(name: &str, duration_secs: u64) {

@@ -67,18 +67,17 @@ pub async fn run(
                             break;
                         }
                         KeyEvent {
-                            code: KeyCode::Char('q'),
-                            ..
-                        } => {
-                            let _ = quit_tx_clone.send(true);
-                            break;
-                        }
-                        KeyEvent {
                             code: KeyCode::Char('s'),
                             ..
                         } => {
-                            let _ = skip_tx_clone.send(true);
-                            break;
+                            // Disable skip on last round
+                            let is_last_round = round_info_clone.as_ref().is_some_and(|ri| {
+                                ri.0 >= ri.1.load(Ordering::Relaxed)
+                            });
+                            if !is_last_round {
+                                let _ = skip_tx_clone.send(true);
+                                break;
+                            }
                         }
                         KeyEvent {
                             code: KeyCode::Char('x'),
@@ -94,6 +93,20 @@ pub async fn run(
                             if matches!(context_clone, TimerContext::Work | TimerContext::Break) {
                                 if let Some(ref ri) = round_info_clone {
                                     ri.1.fetch_add(1, Ordering::Relaxed);
+                                }
+                            }
+                        }
+                        KeyEvent {
+                            code: KeyCode::Char('d'),
+                            ..
+                        } => {
+                            if matches!(context_clone, TimerContext::Work | TimerContext::Break) {
+                                if let Some(ref ri) = round_info_clone {
+                                    // Don't go below current round
+                                    let current_round = ri.0;
+                                    let _ = ri.1.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |val| {
+                                        if val > current_round { Some(val - 1) } else { None }
+                                    });
                                 }
                             }
                         }
@@ -118,7 +131,7 @@ pub async fn run(
             break;
         }
         if *skip_rx.borrow() {
-            let _ = renderer.teardown();
+            // Don't teardown — session stays in alternate screen for smooth transition
             return TimerOutcome::Skipped;
         }
         if *stop_rx.borrow() {
