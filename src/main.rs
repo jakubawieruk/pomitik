@@ -9,7 +9,7 @@ mod timer;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "pomitik", about = "A command-line countdown timer", version)]
+#[command(name = "tik", about = "A command-line countdown timer", version)]
 struct Cli {
     /// Duration (e.g., 25m, 1h30m, 90s) or preset name (e.g., pomodoro, break)
     duration: Option<String>,
@@ -42,8 +42,8 @@ async fn main() {
     let input = match cli.duration {
         Some(d) => d,
         None => {
-            eprintln!("Usage: pomitik <duration|preset> or pomitik log");
-            eprintln!("Examples: pomitik 25m, pomitik pomodoro, pomitik 1h30m");
+            eprintln!("Usage: tik <duration|preset> or tik log");
+            eprintln!("Examples: tik 25m, tik pomodoro, tik 1h30m");
             std::process::exit(1);
         }
     };

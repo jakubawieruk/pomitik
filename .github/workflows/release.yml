@@ -38,14 +38,14 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czf ../../../${{ matrix.archive }} pomitik
+          tar -czf ../../../${{ matrix.archive }} tik
           cd ../../..
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path target/${{ matrix.target }}/release/pomitik.exe -DestinationPath ${{ matrix.archive }}
+          Compress-Archive -Path target/${{ matrix.target }}/release/tik.exe -DestinationPath ${{ matrix.archive }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

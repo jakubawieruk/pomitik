@@ -27,16 +27,16 @@ cargo install --path .
 ## Usage
 
 ```bash
-pomitik 25m              # 25 minute timer
-pomitik 1h30m            # 1 hour 30 minutes
-pomitik 90s              # 90 seconds
+tik 25m              # 25 minute timer
+tik 1h30m            # 1 hour 30 minutes
+tik 90s              # 90 seconds
 
-pomitik pomodoro         # Full session: 4x (25m work + 5m break), ends with 15m long break
-pomitik break            # Single 5m break timer
-pomitik long-break       # Single 15m timer
+tik pomodoro         # Full session: 4x (25m work + 5m break), ends with 15m long break
+tik break            # Single 5m break timer
+tik long-break       # Single 15m timer
 
-pomitik --silent 25m     # Suppress notification sound
-pomitik log              # Show today's and this week's session summary
+tik --silent 25m     # Suppress notification sound
+tik log              # Show today's and this week's session summary
 ```
 
 ## Controls
@@ -67,9 +67,9 @@ Built-in defaults (pomodoro, break, long-break) work without a config file.
 Completed timers are logged to `~/.local/share/pomitik/log.json`. View a summary with:
 
 ```bash
-pomitik log
+tik log
 ```
 
 ## Known Limitations
 
-- **macOS notifications appear under Finder** in System Settings > Notifications. This is because CLI tools don't have their own app bundle, so macOS attributes notifications to the parent process. To receive pomitik notifications, enable notifications for Finder. Packaging pomitik as a `.app` bundle would resolve this but is not currently implemented.
+- **macOS notifications appear under Finder** in System Settings > Notifications. This is because CLI tools don't have their own app bundle, so macOS attributes notifications to the parent process. To receive notifications, enable notifications for Finder. Packaging as a `.app` bundle would resolve this but is not currently implemented.
