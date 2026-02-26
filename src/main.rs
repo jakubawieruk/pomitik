@@ -48,8 +48,17 @@ async fn main() {
         }
     };
 
-    // Try parsing as duration first, then as preset
+    // Resolution order: session → preset → duration
     let config = config::Config::load();
+
+    // 1. Check if it's a session
+    if let Some(session_config) = config.resolve_session(&input) {
+        let session_config = session_config.clone();
+        session::run_session(&session_config, &config, cli.silent).await;
+        return;
+    }
+
+    // 2. Try parsing as duration, then as preset
     let (name, dur) = match duration::Duration::parse(&input) {
         Ok(d) => (input.clone(), d),
         Err(_) => {
