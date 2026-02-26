@@ -2,6 +2,10 @@
 
 A command-line countdown timer with sessions, presets, and a minimal terminal UI. Works on macOS and Windows.
 
+<p align="center">
+  <img src="pomotik.png" alt="pomitik terminal UI" width="600">
+</p>
+
 ## Install
 
 ### Homebrew (macOS)
