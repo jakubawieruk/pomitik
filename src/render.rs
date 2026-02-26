@@ -6,6 +6,16 @@ use crossterm::{
 };
 use std::io::{self, Write};
 
+pub struct DrawParams<'a> {
+    pub remaining_secs: u64,
+    pub total_secs: u64,
+    pub elapsed_secs: u64,
+    pub paused: bool,
+    pub title: Option<&'a str>,
+    pub round_info: Option<(u32, u32)>,  // (current_round, total_rounds)
+    pub context: crate::timer::TimerContext,
+}
+
 pub struct Renderer {
     bar_width: u16,
 }
@@ -27,13 +37,12 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn draw(
-        &self,
-        remaining_secs: u64,
-        total_secs: u64,
-        elapsed_secs: u64,
-        paused: bool,
-    ) -> io::Result<()> {
+    pub fn draw(&self, params: &DrawParams) -> io::Result<()> {
+        let remaining_secs = params.remaining_secs;
+        let total_secs = params.total_secs;
+        let elapsed_secs = params.elapsed_secs;
+        let paused = params.paused;
+
         let (cols, rows) = terminal::size()?;
         let mid_row = rows / 2;
 
@@ -64,6 +73,35 @@ impl Renderer {
         let mut stdout = io::stdout();
 
         execute!(stdout, terminal::Clear(ClearType::All))?;
+
+        // Title — white, bold, centered
+        if let Some(title) = params.title {
+            let title_row = mid_row.saturating_sub(4);
+            let title_col = cols.saturating_sub(title.len() as u16) / 2;
+            execute!(
+                stdout,
+                cursor::MoveTo(title_col, title_row),
+                SetAttribute(Attribute::Bold),
+                Print(title),
+                SetAttribute(Attribute::Reset),
+            )?;
+        }
+
+        // Round info — cyan, bold, centered
+        if let Some((current, total)) = params.round_info {
+            let round_str = format!("Round {current}/{total}");
+            let round_col = cols.saturating_sub(round_str.len() as u16) / 2;
+            let round_row = mid_row.saturating_sub(3);
+            execute!(
+                stdout,
+                cursor::MoveTo(round_col, round_row),
+                SetForegroundColor(Color::Cyan),
+                SetAttribute(Attribute::Bold),
+                Print(&round_str),
+                SetAttribute(Attribute::Reset),
+                ResetColor,
+            )?;
+        }
 
         // Remaining time — bold, centered
         let time_col = cols.saturating_sub(remaining_str.len() as u16) / 2;
@@ -99,6 +137,24 @@ impl Renderer {
             cursor::MoveTo(label_col, mid_row + 3),
             SetForegroundColor(Color::DarkGrey),
             Print(&label),
+            ResetColor,
+        )?;
+
+        // Hint bar — dark grey, centered
+        let hints = match params.context {
+            crate::timer::TimerContext::Standalone => {
+                "[space] pause  [s] skip  [x] stop"
+            }
+            crate::timer::TimerContext::Work | crate::timer::TimerContext::Break => {
+                "[space] pause  [s] skip  [a] +round  [x] stop"
+            }
+        };
+        let hints_col = cols.saturating_sub(hints.len() as u16) / 2;
+        execute!(
+            stdout,
+            cursor::MoveTo(hints_col, mid_row + 5),
+            SetForegroundColor(Color::DarkGrey),
+            Print(hints),
             ResetColor,
         )?;
 

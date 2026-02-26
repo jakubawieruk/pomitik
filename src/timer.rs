@@ -25,7 +25,7 @@ pub async fn run(
     total_secs: u64,
     _name: &str,
     context: TimerContext,
-    _title: Option<&str>,
+    title: Option<&str>,
     round_info: Option<(u32, Arc<AtomicU32>)>,
 ) -> TimerOutcome {
     let renderer = Renderer::new();
@@ -143,10 +143,20 @@ pub async fn run(
         let elapsed_secs = active_elapsed.as_secs();
         let remaining_secs = total_secs.saturating_sub(elapsed_secs);
 
-        if renderer
-            .draw(remaining_secs, total_secs, elapsed_secs, is_paused)
-            .is_err()
-        {
+        let current_round_info = round_info
+            .as_ref()
+            .map(|(current, total_arc)| (*current, total_arc.load(Ordering::Relaxed)));
+
+        let params = crate::render::DrawParams {
+            remaining_secs,
+            total_secs,
+            elapsed_secs,
+            paused: is_paused,
+            title,
+            round_info: current_round_info,
+            context,
+        };
+        if renderer.draw(&params).is_err() {
             break;
         }
 
