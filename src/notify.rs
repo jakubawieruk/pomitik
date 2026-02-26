@@ -5,6 +5,7 @@ pub fn send_completion(name: &str, duration_display: &str, silent: bool) {
         .body(&format!("{duration_display} timer finished"))
         .appname("tik");
 
+    #[cfg(target_os = "macos")]
     if !silent {
         notification.sound_name("Glass");
     }

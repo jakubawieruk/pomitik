@@ -1,6 +1,6 @@
 # tik
 
-A command-line countdown timer for macOS with sessions, presets, and a minimal terminal UI.
+A command-line countdown timer with sessions, presets, and a minimal terminal UI. Works on macOS and Windows.
 
 ## Install
 
@@ -9,6 +9,13 @@ A command-line countdown timer for macOS with sessions, presets, and a minimal t
 ```bash
 brew tap jakubawieruk/tik
 brew install tik
+```
+
+### Scoop (Windows)
+
+```powershell
+scoop bucket add tik https://github.com/jakubawieruk/scoop-tik
+scoop install tik
 ```
 
 ### From source
