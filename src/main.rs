@@ -54,7 +54,7 @@ async fn main() {
     // 1. Check if it's a session
     if let Some(session_config) = config.resolve_session(&input) {
         let session_config = session_config.clone();
-        session::run_session(&session_config, &config, cli.silent).await;
+        session::run_session(&session_config, &config, cli.silent, None).await;
         return;
     }
 

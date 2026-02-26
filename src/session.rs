@@ -9,11 +9,19 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
-pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool) {
-    let rounds = session.rounds;
+pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool, title: Option<&str>) {
+    let total_rounds = Arc::new(AtomicU32::new(session.rounds));
+    let mut round: u32 = 1;
 
-    for round in 1..=rounds {
+    loop {
+        let current_total = total_rounds.load(Ordering::Relaxed);
+        if round > current_total {
+            break;
+        }
+
         // --- Work phase ---
         let work_duration_str = config
             .resolve_preset(&session.work)
@@ -26,24 +34,35 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool)
             }
         };
 
-        show_round_header(round, rounds, &session.work, &work_dur.format_hms());
+        show_round_header(round, current_total, &session.work, &work_dur.format_hms(), title);
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let outcome = timer::run(work_dur.total_secs, &session.work, timer::TimerContext::Work, None, None).await;
+        let outcome = timer::run(
+            work_dur.total_secs,
+            &session.work,
+            timer::TimerContext::Work,
+            title,
+            Some((round, Arc::clone(&total_rounds))),
+        ).await;
+
         match outcome {
-            timer::TimerOutcome::Quit | timer::TimerOutcome::StoppedEarly => {
+            timer::TimerOutcome::Quit => {
                 println!("Session cancelled.");
                 return;
             }
-            _ => {}
+            timer::TimerOutcome::StoppedEarly => {
+                println!("Session stopped early after {} round{}.", round.saturating_sub(1), if round.saturating_sub(1) == 1 { "" } else { "s" });
+                return;
+            }
+            _ => {} // Completed or Skipped — continue to break
         }
 
         crate::notify::send_completion(&session.work, &work_dur.format_hms(), silent);
         log_entry(&session.work, work_dur.total_secs);
 
         // --- Break phase ---
-        let (break_name, break_duration_str) = if round == rounds {
-            // Last round: long break
+        let current_total = total_rounds.load(Ordering::Relaxed);
+        let (break_name, break_duration_str) = if round == current_total {
             let dur_str = config
                 .resolve_preset(&session.long_break)
                 .unwrap_or(&session.long_break);
@@ -63,26 +82,40 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool)
             }
         };
 
-        show_round_header(round, rounds, break_name, &break_dur.format_hms());
+        show_round_header(round, current_total, break_name, &break_dur.format_hms(), title);
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let outcome = timer::run(break_dur.total_secs, break_name, timer::TimerContext::Break, None, None).await;
+        let outcome = timer::run(
+            break_dur.total_secs,
+            break_name,
+            timer::TimerContext::Break,
+            title,
+            Some((round, Arc::clone(&total_rounds))),
+        ).await;
+
         match outcome {
-            timer::TimerOutcome::Quit | timer::TimerOutcome::StoppedEarly => {
+            timer::TimerOutcome::Quit => {
                 println!("Session cancelled.");
                 return;
             }
-            _ => {}
+            timer::TimerOutcome::StoppedEarly => {
+                println!("Session stopped early after {} round{}.", round, if round == 1 { "" } else { "s" });
+                return;
+            }
+            _ => {} // Completed or Skipped — continue
         }
 
         crate::notify::send_completion(break_name, &break_dur.format_hms(), silent);
         log_entry(break_name, break_dur.total_secs);
+
+        round += 1;
     }
 
-    println!("Session complete! {} rounds finished.", rounds);
+    let final_total = total_rounds.load(Ordering::Relaxed);
+    println!("Session complete! {} rounds finished.", final_total);
 }
 
-fn show_round_header(round: u32, total: u32, name: &str, duration: &str) {
+fn show_round_header(round: u32, total: u32, name: &str, duration: &str, title: Option<&str>) {
     let _ = terminal::enable_raw_mode();
     let _ = execute!(io::stdout(), terminal::EnterAlternateScreen, cursor::Hide);
 
@@ -98,6 +131,23 @@ fn show_round_header(round: u32, total: u32, name: &str, duration: &str) {
     let _ = execute!(
         io::stdout(),
         terminal::Clear(ClearType::All),
+    );
+
+    if let Some(title) = title {
+        let title_col = cols.saturating_sub(title.len() as u16) / 2;
+        let _ = execute!(
+            io::stdout(),
+            cursor::MoveTo(title_col, mid_row.saturating_sub(3)),
+            SetForegroundColor(Color::White),
+            SetAttribute(Attribute::Bold),
+            Print(title),
+            SetAttribute(Attribute::Reset),
+            ResetColor,
+        );
+    }
+
+    let _ = execute!(
+        io::stdout(),
         cursor::MoveTo(col1, mid_row.saturating_sub(1)),
         SetForegroundColor(Color::Cyan),
         SetAttribute(Attribute::Bold),
