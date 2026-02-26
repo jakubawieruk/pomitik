@@ -36,20 +36,9 @@ src/
 - **Notification sound:** Platform-conditional with `#[cfg(target_os = "macos")]` — macOS uses "Glass" sound, Windows uses default toast sound.
 - **Session log:** Newline-delimited JSON (one entry per line), easy to append without parsing the whole file.
 
-## Build & test
-
-```bash
-cargo build
-cargo test          # 28 tests
-cargo install --path .
-```
 
 ## Distribution
 
 - **Homebrew tap:** `jakubawieruk/homebrew-pomitik`
 - **Scoop bucket:** `jakubawieruk/scoop-pomitik`
 - **CI:** GitHub Actions (`.github/workflows/release.yml`) — push a `v*` tag to build for macOS arm64, macOS x86_64, and Windows x86_64, then create a GitHub release with all three archives.
-
-## Dependencies
-
-clap (derive), tokio, crossterm, notify-rust, serde/serde_json/toml, chrono, dirs, regex
