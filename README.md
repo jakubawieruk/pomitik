@@ -7,14 +7,14 @@ A command-line countdown timer with sessions, presets, and a minimal terminal UI
 ### Homebrew (macOS)
 
 ```bash
-brew tap jakubawieruk/tik
+brew tap jakubawieruk/pomitik
 brew install pomitik
 ```
 
 ### Scoop (Windows)
 
 ```powershell
-scoop bucket add pomitik https://github.com/jakubawieruk/scoop-tik
+scoop bucket add pomitik https://github.com/jakubawieruk/scoop-pomitik
 scoop install pomitik
 ```
 
