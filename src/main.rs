@@ -5,6 +5,89 @@ mod notify;
 mod render;
 mod timer;
 
-fn main() {
-    println!("tik");
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "tik", about = "A command-line countdown timer", version)]
+struct Cli {
+    /// Duration (e.g., 25m, 1h30m, 90s) or preset name (e.g., pomodoro, break)
+    duration: Option<String>,
+
+    /// Suppress notification sound
+    #[arg(long)]
+    silent: bool,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Show session log summary
+    Log,
+}
+
+#[tokio::main]
+async fn main() {
+    let cli = Cli::parse();
+
+    // Handle subcommands
+    if let Some(Commands::Log) = cli.command {
+        log::print_summary();
+        return;
+    }
+
+    // Must have a duration/preset argument
+    let input = match cli.duration {
+        Some(d) => d,
+        None => {
+            eprintln!("Usage: tik <duration|preset> or tik log");
+            eprintln!("Examples: tik 25m, tik pomodoro, tik 1h30m");
+            std::process::exit(1);
+        }
+    };
+
+    // Try parsing as duration first, then as preset
+    let config = config::Config::load();
+    let (name, dur) = match duration::Duration::parse(&input) {
+        Ok(d) => (input.clone(), d),
+        Err(_) => {
+            // Try as preset
+            match config.resolve_preset(&input) {
+                Some(preset_duration) => match duration::Duration::parse(preset_duration) {
+                    Ok(d) => (input.clone(), d),
+                    Err(e) => {
+                        eprintln!("Invalid preset duration for '{input}': {e}");
+                        std::process::exit(1);
+                    }
+                },
+                None => {
+                    eprintln!("Unknown duration or preset: '{input}'");
+                    eprintln!("Valid formats: 25m, 1h30m, 90s");
+                    eprintln!("Built-in presets: pomodoro, break, long-break");
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+
+    let display = dur.format_hms();
+    let result = timer::run(dur.total_secs, &name).await;
+
+    if result.completed {
+        notify::send_completion(&name, &display, cli.silent);
+
+        let entry = log::LogEntry {
+            name,
+            duration_secs: dur.total_secs,
+            completed_at: chrono::Local::now(),
+        };
+        if let Err(e) = log::append_entry(&entry) {
+            eprintln!("Failed to write log: {e}");
+        }
+
+        println!("Timer complete: {display}");
+    } else {
+        println!("Timer cancelled.");
+    }
 }
