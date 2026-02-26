@@ -3,6 +3,7 @@ mod duration;
 mod log;
 mod notify;
 mod render;
+mod session;
 mod timer;
 
 use clap::{Parser, Subcommand};
