@@ -18,6 +18,10 @@ struct Cli {
     #[arg(long)]
     silent: bool,
 
+    /// Optional title displayed in the timer
+    #[arg(long)]
+    title: Option<String>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -54,7 +58,7 @@ async fn main() {
     // 1. Check if it's a session
     if let Some(session_config) = config.resolve_session(&input) {
         let session_config = session_config.clone();
-        session::run_session(&session_config, &config, cli.silent, None).await;
+        session::run_session(&session_config, &config, cli.silent, cli.title.as_deref()).await;
         return;
     }
 
@@ -82,7 +86,7 @@ async fn main() {
     };
 
     let display = dur.format_hms();
-    let outcome = timer::run(dur.total_secs, &name, timer::TimerContext::Standalone, None, None).await;
+    let outcome = timer::run(dur.total_secs, &name, timer::TimerContext::Standalone, cli.title.as_deref(), None).await;
 
     if outcome == timer::TimerOutcome::Completed {
         notify::send_completion(&name, &display, cli.silent);
