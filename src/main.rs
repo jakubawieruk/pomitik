@@ -30,6 +30,24 @@ struct Cli {
 enum Commands {
     /// Show session log summary
     Log,
+    /// View or change configuration
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Show current configuration
+    Show,
+    /// Set a configuration value (keys: work, break, long-break, rounds)
+    Set {
+        /// Config key to set
+        key: String,
+        /// New value (duration like "25m" or number for rounds)
+        value: String,
+    },
 }
 
 #[tokio::main]
@@ -37,8 +55,24 @@ async fn main() {
     let cli = Cli::parse();
 
     // Handle subcommands
-    if let Some(Commands::Log) = cli.command {
-        log::print_summary();
+    if let Some(command) = cli.command {
+        match command {
+            Commands::Log => {
+                log::print_summary();
+            }
+            Commands::Config { action } => {
+                let cfg = config::Config::load();
+                match action {
+                    ConfigAction::Show => cfg.show_config(),
+                    ConfigAction::Set { key, value } => {
+                        if let Err(e) = config::Config::set_value(&key, &value) {
+                            eprintln!("{e}");
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
         return;
     }
 
