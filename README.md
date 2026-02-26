@@ -4,6 +4,15 @@ A command-line countdown timer for macOS with sessions, presets, and a minimal t
 
 ## Install
 
+### Homebrew (macOS)
+
+```bash
+brew tap jakubawieruk/tik
+brew install tik
+```
+
+### From source
+
 ```bash
 cargo install --path .
 ```
