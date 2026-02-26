@@ -1,5 +1,5 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::watch;
@@ -24,9 +24,9 @@ pub enum TimerOutcome {
 pub async fn run(
     total_secs: u64,
     _name: &str,
-    _context: TimerContext,
+    context: TimerContext,
     _title: Option<&str>,
-    _round_info: Option<(u32, Arc<AtomicU32>)>,
+    round_info: Option<(u32, Arc<AtomicU32>)>,
 ) -> TimerOutcome {
     let renderer = Renderer::new();
     if let Err(e) = renderer.setup() {
@@ -36,10 +36,16 @@ pub async fn run(
 
     let (pause_tx, pause_rx) = watch::channel(false);
     let (quit_tx, quit_rx) = watch::channel(false);
+    let (skip_tx, skip_rx) = watch::channel(false);
+    let (stop_tx, stop_rx) = watch::channel(false);
 
     // Spawn a thread for keyboard input (crossterm events are blocking)
     let pause_tx_clone = pause_tx.clone();
     let quit_tx_clone = quit_tx.clone();
+    let skip_tx_clone = skip_tx.clone();
+    let stop_tx_clone = stop_tx.clone();
+    let round_info_clone = round_info.clone();
+    let context_clone = context;
     std::thread::spawn(move || {
         loop {
             if event::poll(std::time::Duration::from_millis(50)).unwrap_or(false) {
@@ -67,6 +73,30 @@ pub async fn run(
                             let _ = quit_tx_clone.send(true);
                             break;
                         }
+                        KeyEvent {
+                            code: KeyCode::Char('s'),
+                            ..
+                        } => {
+                            let _ = skip_tx_clone.send(true);
+                            break;
+                        }
+                        KeyEvent {
+                            code: KeyCode::Char('x'),
+                            ..
+                        } => {
+                            let _ = stop_tx_clone.send(true);
+                            break;
+                        }
+                        KeyEvent {
+                            code: KeyCode::Char('a'),
+                            ..
+                        } => {
+                            if matches!(context_clone, TimerContext::Work | TimerContext::Break) {
+                                if let Some(ref ri) = round_info_clone {
+                                    ri.1.fetch_add(1, Ordering::Relaxed);
+                                }
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -86,6 +116,14 @@ pub async fn run(
         // Check quit
         if *quit_rx.borrow() {
             break;
+        }
+        if *skip_rx.borrow() {
+            let _ = renderer.teardown();
+            return TimerOutcome::Skipped;
+        }
+        if *stop_rx.borrow() {
+            let _ = renderer.teardown();
+            return TimerOutcome::StoppedEarly;
         }
 
         let is_paused = *pause_rx.borrow();
