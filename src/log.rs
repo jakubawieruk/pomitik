@@ -14,7 +14,7 @@ pub struct LogEntry {
 pub fn log_path() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("tik")
+        .join("pomitik")
         .join("log.json")
 }
 
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn log_path_ends_with_expected() {
         let path = log_path();
-        assert!(path.ends_with("tik/log.json"));
+        assert!(path.ends_with("pomitik/log.json"));
     }
 
     #[test]

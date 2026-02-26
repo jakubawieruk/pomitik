@@ -888,6 +888,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pomitik"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "crossterm",
+ "dirs",
+ "notify-rust",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1210,22 +1226,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "tik"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "crossterm",
- "dirs",
- "notify-rust",
- "regex",
- "serde",
- "serde_json",
- "tokio",
- "toml",
 ]
 
 [[package]]

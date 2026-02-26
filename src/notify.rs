@@ -3,7 +3,7 @@ pub fn send_completion(name: &str, duration_display: &str, silent: bool) {
     notification
         .summary(&format!("{name} complete"))
         .body(&format!("{duration_display} timer finished"))
-        .appname("tik");
+        .appname("pomitik");
 
     #[cfg(target_os = "macos")]
     if !silent {
