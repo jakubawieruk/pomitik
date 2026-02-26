@@ -81,9 +81,11 @@ impl Renderer {
             execute!(
                 stdout,
                 cursor::MoveTo(title_col, title_row),
+                SetForegroundColor(Color::White),
                 SetAttribute(Attribute::Bold),
                 Print(title),
                 SetAttribute(Attribute::Reset),
+                ResetColor,
             )?;
         }
 
