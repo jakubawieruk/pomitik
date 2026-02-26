@@ -40,31 +40,50 @@ tik break            # Single 5m break timer
 tik long-break       # Single 15m timer
 
 tik --silent 25m     # Suppress notification sound
+tik --title "Deep Work" pomodoro  # Display a custom title in the timer
+
 tik log              # Show today's and this week's session summary
+tik config show      # Show current configuration
+tik config set work 30m   # Set work duration to 30 minutes
+tik config set rounds 6   # Set number of rounds to 6
 ```
 
 ## Controls
 
 - **Space** — pause / resume
-- **q** or **Ctrl+C** — quit
+- **s** — skip to next phase (disabled on last round)
+- **a** / **d** — add / remove a round (during sessions)
+- **x** — stop session early
+- **Ctrl+C** — quit
 
 ## Config
 
-Optional. Create `~/.config/pomitik/config.toml` to customize presets and sessions:
+View or change settings from the command line:
+
+```bash
+tik config show               # Show current values
+tik config set work 30m       # Set work duration
+tik config set break 10m      # Set break duration
+tik config set long-break 20m # Set long break duration
+tik config set rounds 6       # Set number of rounds
+```
+
+Settings are stored in `~/.config/pomitik/config.toml`. You can also edit this file directly:
 
 ```toml
 [presets]
 pomodoro = "25m"
 break = "5m"
 long-break = "15m"
-deep-work = "50m"
 
-[sessions]
-pomodoro = { work = "pomodoro", break = "break", long_break = "long-break", rounds = 4 }
-deep = { work = "deep-work", break = "break", long_break = "long-break", rounds = 3 }
+[sessions.pomodoro]
+work = "pomodoro"
+break = "break"
+long_break = "long-break"
+rounds = 4
 ```
 
-Built-in defaults (pomodoro, break, long-break) work without a config file.
+Built-in defaults (pomodoro: 25m, break: 5m, long-break: 15m, 4 rounds) work without a config file.
 
 ## Session Log
 
