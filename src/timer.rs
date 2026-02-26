@@ -1,18 +1,37 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::watch;
 
 use crate::render::Renderer;
 
-pub struct TimerResult {
-    pub completed: bool,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TimerContext {
+    Standalone,
+    Work,
+    Break,
 }
 
-pub async fn run(total_secs: u64, _name: &str) -> TimerResult {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TimerOutcome {
+    Completed,
+    Skipped,
+    StoppedEarly,
+    Quit,
+}
+
+pub async fn run(
+    total_secs: u64,
+    _name: &str,
+    _context: TimerContext,
+    _title: Option<&str>,
+    _round_info: Option<(u32, Arc<AtomicU32>)>,
+) -> TimerOutcome {
     let renderer = Renderer::new();
     if let Err(e) = renderer.setup() {
         eprintln!("Failed to setup terminal: {e}");
-        return TimerResult { completed: false };
+        return TimerOutcome::Quit;
     }
 
     let (pause_tx, pause_rx) = watch::channel(false);
@@ -103,5 +122,5 @@ pub async fn run(total_secs: u64, _name: &str) -> TimerResult {
     }
 
     let _ = renderer.teardown();
-    TimerResult { completed }
+    if completed { TimerOutcome::Completed } else { TimerOutcome::Quit }
 }

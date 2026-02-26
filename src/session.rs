@@ -29,10 +29,13 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool)
         show_round_header(round, rounds, &session.work, &work_dur.format_hms());
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let result = timer::run(work_dur.total_secs, &session.work).await;
-        if !result.completed {
-            println!("Session cancelled.");
-            return;
+        let outcome = timer::run(work_dur.total_secs, &session.work, timer::TimerContext::Work, None, None).await;
+        match outcome {
+            timer::TimerOutcome::Quit | timer::TimerOutcome::StoppedEarly => {
+                println!("Session cancelled.");
+                return;
+            }
+            _ => {}
         }
 
         crate::notify::send_completion(&session.work, &work_dur.format_hms(), silent);
@@ -63,10 +66,13 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool)
         show_round_header(round, rounds, break_name, &break_dur.format_hms());
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-        let result = timer::run(break_dur.total_secs, break_name).await;
-        if !result.completed {
-            println!("Session cancelled.");
-            return;
+        let outcome = timer::run(break_dur.total_secs, break_name, timer::TimerContext::Break, None, None).await;
+        match outcome {
+            timer::TimerOutcome::Quit | timer::TimerOutcome::StoppedEarly => {
+                println!("Session cancelled.");
+                return;
+            }
+            _ => {}
         }
 
         crate::notify::send_completion(break_name, &break_dur.format_hms(), silent);
