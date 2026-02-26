@@ -57,6 +57,10 @@ impl Renderer {
             Color::Green
         };
 
+        // Build progress bar string
+        let bar_filled: String = "\u{2588}".repeat(filled as usize);
+        let bar_empty: String = "\u{2591}".repeat(empty as usize);
+
         let mut stdout = io::stdout();
 
         execute!(stdout, terminal::Clear(ClearType::All))?;
@@ -65,25 +69,23 @@ impl Renderer {
         let time_col = cols.saturating_sub(remaining_str.len() as u16) / 2;
         execute!(
             stdout,
-            cursor::MoveTo(time_col, mid_row - 1),
+            cursor::MoveTo(time_col, mid_row.saturating_sub(1)),
             SetAttribute(Attribute::Bold),
             Print(&remaining_str),
             SetAttribute(Attribute::Reset),
         )?;
 
-        // Progress bar — centered
+        // Progress bar — centered, printed as single strings
         let bar_col = cols.saturating_sub(self.bar_width) / 2;
-        execute!(stdout, cursor::MoveTo(bar_col, mid_row + 1))?;
-
-        execute!(stdout, SetForegroundColor(bar_color))?;
-        for _ in 0..filled {
-            execute!(stdout, Print("\u{2588}"))?; // █
-        }
-        execute!(stdout, SetForegroundColor(Color::DarkGrey))?;
-        for _ in 0..empty {
-            execute!(stdout, Print("\u{2591}"))?; // ░
-        }
-        execute!(stdout, ResetColor)?;
+        execute!(
+            stdout,
+            cursor::MoveTo(bar_col, mid_row + 1),
+            SetForegroundColor(bar_color),
+            Print(&bar_filled),
+            SetForegroundColor(Color::DarkGrey),
+            Print(&bar_empty),
+            ResetColor,
+        )?;
 
         // Elapsed or "PAUSED" — dim, centered
         let label = if paused {
