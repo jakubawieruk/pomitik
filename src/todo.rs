@@ -55,6 +55,89 @@ impl TodoList {
         std::fs::write(&path, json).map_err(|e| format!("Failed to write todos: {e}"))?;
         Ok(())
     }
+
+    pub fn add(&mut self, text: String) {
+        let todo = Todo {
+            id: self.next_id,
+            text,
+            done: false,
+            created_at: Local::now(),
+            completed_at: None,
+        };
+        self.items.push(todo);
+        self.next_id += 1;
+    }
+
+    pub fn mark_done(&mut self, id: u32) -> Result<(), String> {
+        let todo = self.items.iter_mut().find(|t| t.id == id)
+            .ok_or_else(|| format!("No todo with id {id}"))?;
+        todo.done = true;
+        todo.completed_at = Some(Local::now());
+        Ok(())
+    }
+
+    pub fn remove(&mut self, id: u32) -> Result<(), String> {
+        let idx = self.items.iter().position(|t| t.id == id)
+            .ok_or_else(|| format!("No todo with id {id}"))?;
+        self.items.remove(idx);
+        Ok(())
+    }
+
+    /// Move task with `id` to `position` (1-based, clamped to valid range).
+    pub fn move_to(&mut self, id: u32, position: u32) -> Result<(), String> {
+        let from = self.items.iter().position(|t| t.id == id)
+            .ok_or_else(|| format!("No todo with id {id}"))?;
+        let to = ((position as usize).saturating_sub(1)).min(self.items.len().saturating_sub(1));
+        let item = self.items.remove(from);
+        self.items.insert(to, item);
+        Ok(())
+    }
+
+    pub fn edit(&mut self, id: u32, text: String) -> Result<(), String> {
+        let todo = self.items.iter_mut().find(|t| t.id == id)
+            .ok_or_else(|| format!("No todo with id {id}"))?;
+        todo.text = text;
+        Ok(())
+    }
+
+    /// Remove all completed tasks. Returns count of removed items.
+    pub fn clear_completed(&mut self) -> usize {
+        let before = self.items.len();
+        self.items.retain(|t| !t.done);
+        before - self.items.len()
+    }
+
+    /// Returns the first pending (not done) task.
+    pub fn current_task(&self) -> Option<&Todo> {
+        self.items.iter().find(|t| !t.done)
+    }
+
+    /// Returns true if there are any pending tasks.
+    pub fn has_pending(&self) -> bool {
+        self.items.iter().any(|t| !t.done)
+    }
+
+    /// Move item at `index` one position up (swap with previous). Noop if at top.
+    pub fn move_up(&mut self, index: usize) -> Result<(), String> {
+        if index >= self.items.len() {
+            return Err(format!("Index {index} out of bounds"));
+        }
+        if index > 0 {
+            self.items.swap(index, index - 1);
+        }
+        Ok(())
+    }
+
+    /// Move item at `index` one position down (swap with next). Noop if at bottom.
+    pub fn move_down(&mut self, index: usize) -> Result<(), String> {
+        if index >= self.items.len() {
+            return Err(format!("Index {index} out of bounds"));
+        }
+        if index + 1 < self.items.len() {
+            self.items.swap(index, index + 1);
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -134,5 +217,177 @@ mod tests {
         let list = TodoList::new();
         assert_eq!(list.next_id, 1);
         assert!(list.items.is_empty());
+    }
+
+    #[test]
+    fn add_todo() {
+        let mut list = TodoList::new();
+        list.add("First task".to_string());
+        assert_eq!(list.items.len(), 1);
+        assert_eq!(list.items[0].id, 1);
+        assert_eq!(list.items[0].text, "First task");
+        assert!(!list.items[0].done);
+        assert_eq!(list.next_id, 2);
+    }
+
+    #[test]
+    fn add_multiple_todos() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        list.add("Second".to_string());
+        assert_eq!(list.items.len(), 2);
+        assert_eq!(list.items[0].id, 1);
+        assert_eq!(list.items[1].id, 2);
+        assert_eq!(list.next_id, 3);
+    }
+
+    #[test]
+    fn mark_done() {
+        let mut list = TodoList::new();
+        list.add("Task".to_string());
+        assert!(list.mark_done(1).is_ok());
+        assert!(list.items[0].done);
+        assert!(list.items[0].completed_at.is_some());
+    }
+
+    #[test]
+    fn mark_done_invalid_id() {
+        let mut list = TodoList::new();
+        assert!(list.mark_done(99).is_err());
+    }
+
+    #[test]
+    fn remove_todo() {
+        let mut list = TodoList::new();
+        list.add("Task".to_string());
+        assert!(list.remove(1).is_ok());
+        assert!(list.items.is_empty());
+    }
+
+    #[test]
+    fn remove_invalid_id() {
+        let mut list = TodoList::new();
+        assert!(list.remove(99).is_err());
+    }
+
+    #[test]
+    fn move_todo() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        list.add("Second".to_string());
+        list.add("Third".to_string());
+        assert!(list.move_to(3, 1).is_ok());
+        assert_eq!(list.items[0].text, "Third");
+        assert_eq!(list.items[1].text, "First");
+        assert_eq!(list.items[2].text, "Second");
+    }
+
+    #[test]
+    fn move_todo_invalid_id() {
+        let mut list = TodoList::new();
+        assert!(list.move_to(99, 1).is_err());
+    }
+
+    #[test]
+    fn move_todo_out_of_bounds_clamps() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        list.add("Second".to_string());
+        assert!(list.move_to(1, 99).is_ok());
+        assert_eq!(list.items[1].text, "First");
+    }
+
+    #[test]
+    fn edit_todo() {
+        let mut list = TodoList::new();
+        list.add("Old text".to_string());
+        assert!(list.edit(1, "New text".to_string()).is_ok());
+        assert_eq!(list.items[0].text, "New text");
+    }
+
+    #[test]
+    fn edit_invalid_id() {
+        let mut list = TodoList::new();
+        assert!(list.edit(99, "text".to_string()).is_err());
+    }
+
+    #[test]
+    fn clear_completed() {
+        let mut list = TodoList::new();
+        list.add("Done task".to_string());
+        list.add("Pending task".to_string());
+        let _ = list.mark_done(1);
+        let cleared = list.clear_completed();
+        assert_eq!(cleared, 1);
+        assert_eq!(list.items.len(), 1);
+        assert_eq!(list.items[0].text, "Pending task");
+    }
+
+    #[test]
+    fn current_task_returns_first_pending() {
+        let mut list = TodoList::new();
+        list.add("Done".to_string());
+        list.add("Current".to_string());
+        list.add("Next".to_string());
+        let _ = list.mark_done(1);
+        let current = list.current_task();
+        assert!(current.is_some());
+        assert_eq!(current.unwrap().text, "Current");
+    }
+
+    #[test]
+    fn current_task_none_when_all_done() {
+        let mut list = TodoList::new();
+        list.add("Done".to_string());
+        let _ = list.mark_done(1);
+        assert!(list.current_task().is_none());
+    }
+
+    #[test]
+    fn has_pending_tasks() {
+        let mut list = TodoList::new();
+        assert!(!list.has_pending());
+        list.add("Task".to_string());
+        assert!(list.has_pending());
+        let _ = list.mark_done(1);
+        assert!(!list.has_pending());
+    }
+
+    #[test]
+    fn move_up_swaps_with_previous() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        list.add("Second".to_string());
+        list.add("Third".to_string());
+        assert!(list.move_up(1).is_ok());
+        assert_eq!(list.items[0].text, "Second");
+        assert_eq!(list.items[1].text, "First");
+    }
+
+    #[test]
+    fn move_up_at_top_is_noop() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        assert!(list.move_up(0).is_ok());
+        assert_eq!(list.items[0].text, "First");
+    }
+
+    #[test]
+    fn move_down_swaps_with_next() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        list.add("Second".to_string());
+        list.add("Third".to_string());
+        assert!(list.move_down(0).is_ok());
+        assert_eq!(list.items[0].text, "Second");
+        assert_eq!(list.items[1].text, "First");
+    }
+
+    #[test]
+    fn move_down_at_bottom_is_noop() {
+        let mut list = TodoList::new();
+        list.add("First".to_string());
+        assert!(list.move_down(0).is_ok());
+        assert_eq!(list.items[0].text, "First");
     }
 }
