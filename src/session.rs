@@ -49,6 +49,7 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool,
             timer::TimerContext::Work,
             title,
             Some((round, Arc::clone(&total_rounds))),
+            None,
         ).await;
 
         in_alt_screen = outcome == timer::TimerOutcome::Skipped;
@@ -106,6 +107,7 @@ pub async fn run_session(session: &SessionConfig, config: &Config, silent: bool,
             timer::TimerContext::Break,
             title,
             Some((round, Arc::clone(&total_rounds))),
+            None,
         ).await;
 
         in_alt_screen = outcome == timer::TimerOutcome::Skipped;

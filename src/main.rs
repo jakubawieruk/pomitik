@@ -238,7 +238,7 @@ async fn main() {
     };
 
     let display = dur.format_hms();
-    let outcome = timer::run(dur.total_secs, &name, timer::TimerContext::Standalone, cli.title.as_deref(), None).await;
+    let outcome = timer::run(dur.total_secs, &name, timer::TimerContext::Standalone, cli.title.as_deref(), None, None).await;
 
     if outcome == timer::TimerOutcome::Completed {
         notify::send_completion(&name, &display, cli.silent);
