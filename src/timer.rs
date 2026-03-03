@@ -168,6 +168,7 @@ pub async fn run(
             title,
             round_info: current_round_info,
             context,
+            todo: None, // Will be wired in Task 5
         };
         if renderer.draw(&params).is_err() {
             break;

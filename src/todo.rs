@@ -17,6 +17,14 @@ pub struct TodoList {
     pub items: Vec<Todo>,
 }
 
+/// Lightweight snapshot of todo state for rendering.
+#[derive(Debug, Clone)]
+pub struct TodoSnapshot {
+    pub items: Vec<(u32, String, bool)>, // (id, text, done)
+    pub selected_index: usize,
+    pub focus: bool, // true = todo panel has focus
+}
+
 pub fn todo_path() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
