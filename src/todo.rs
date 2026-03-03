@@ -116,6 +116,7 @@ impl TodoList {
     }
 
     /// Returns the first pending (not done) task.
+    #[allow(dead_code)]
     pub fn current_task(&self) -> Option<&Todo> {
         self.items.iter().find(|t| !t.done)
     }
@@ -138,6 +139,7 @@ impl TodoList {
     }
 
     /// Returns true if there are any pending tasks.
+    #[allow(dead_code)]
     pub fn has_pending(&self) -> bool {
         self.items.iter().any(|t| !t.done)
     }
